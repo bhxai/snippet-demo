@@ -1,0 +1,233 @@
+:root {
+  color-scheme: light dark;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #0f172a;
+  color: #f8fafc;
+  line-height: 1.5;
+}
+
+body {
+  margin: 0;
+}
+
+.app {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 4rem;
+}
+
+header {
+  margin-bottom: 1.5rem;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+header p {
+  margin: 0.25rem 0 0;
+  color: #cbd5f5;
+}
+
+.controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.controls select {
+  font-size: 1rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  background: rgba(15, 23, 42, 0.6);
+  color: inherit;
+}
+
+.upload-panel,
+.feedback-editor,
+.chat {
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.upload-button {
+  display: inline-block;
+  margin-top: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #6366f1, #22d3ee);
+  color: #0f172a;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.upload-button.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.upload-button:hover:not(.disabled) {
+  transform: translateY(-1px) scale(1.01);
+}
+
+.status-text {
+  margin-top: 0.75rem;
+  color: #cbd5f5;
+}
+
+.chat {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: 320px;
+}
+
+.messages {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 360px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+.empty-state {
+  margin: 0;
+  color: rgba(203, 213, 225, 0.75);
+  font-style: italic;
+}
+
+.message {
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  background: rgba(30, 41, 59, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.message-user {
+  align-self: flex-end;
+  background: rgba(79, 70, 229, 0.15);
+  border-color: rgba(99, 102, 241, 0.35);
+}
+
+.message-role {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(226, 232, 240, 0.7);
+  margin-bottom: 0.25rem;
+}
+
+.message-content {
+  white-space: pre-wrap;
+}
+
+.context-details {
+  margin-top: 0.75rem;
+  background: rgba(15, 23, 42, 0.35);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+}
+
+.context-details summary {
+  cursor: pointer;
+  color: #38bdf8;
+}
+
+.context-details ul {
+  list-style: none;
+  padding-left: 0.5rem;
+}
+
+.context-details li {
+  margin-bottom: 0.5rem;
+}
+
+.feedback-response {
+  margin-top: 0.25rem;
+  white-space: pre-wrap;
+  color: #e0f2fe;
+}
+
+.composer {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.composer textarea {
+  flex: 1;
+  resize: vertical;
+  min-height: 80px;
+  padding: 0.75rem;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: rgba(15, 23, 42, 0.6);
+  color: inherit;
+}
+
+.composer button,
+.feedback-editor button {
+  align-self: flex-start;
+  padding: 0.75rem 1.5rem;
+  border-radius: 999px;
+  border: none;
+  background: linear-gradient(135deg, #22d3ee, #38bdf8);
+  color: #0f172a;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.composer button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.composer button:not(:disabled):hover,
+.feedback-editor button:hover {
+  transform: translateY(-1px) scale(1.01);
+}
+
+.feedback-editor textarea {
+  width: 100%;
+  margin: 0.75rem 0;
+  padding: 0.75rem;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: rgba(15, 23, 42, 0.6);
+  color: inherit;
+  resize: vertical;
+  min-height: 160px;
+}
+
+@media (max-width: 720px) {
+  .app {
+    padding: 1.5rem 1rem 3rem;
+  }
+
+  .controls {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .composer {
+    flex-direction: column;
+  }
+
+  .composer button {
+    width: 100%;
+  }
+}
