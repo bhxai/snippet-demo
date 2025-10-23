@@ -1,10 +1,18 @@
-from typing import List
+import re
+from typing import Dict, List, Set, Tuple
 
 from ..models import ChatMessage, FeedbackSnippet, SourceDocument
 from .. import config
 
 
-SYSTEM_PROMPT = """You are an AI assistant helping a logistics company answer questions based on internal documents and user feedback.\nUser feedback captures corrections from subject matter experts and should be treated as authoritative.\nWhen multiple feedback entries conflict, prefer the one provided by the highest weighted role.\nRoles have the following priority from lowest to highest authority: driver, manager, owner."""
+SYSTEM_PROMPT = (
+    "You are an AI assistant helping a logistics company answer questions using internal documents. "
+    "Retrieved documents provide operational context. User feedback entries capture the most up-to-date guidance "
+    "from subject matter experts and should be treated as authoritative when they apply to the current question."
+)
+
+QUERY_SIMILARITY_THRESHOLD = 0.2
+DOCUMENT_RELEVANCE_THRESHOLD = 0.1
 
 
 def format_chat_history(history: List[ChatMessage]) -> str:
@@ -34,22 +42,90 @@ def format_documents(documents: List[SourceDocument]) -> str:
     return "\n\n".join(parts)
 
 
+def _tokenize(text: str) -> Set[str]:
+    return set(re.findall(r"\b\w+\b", text.casefold()))
+
+
+def _jaccard_similarity(first: Set[str], second: Set[str]) -> float:
+    if not first or not second:
+        return 0.0
+    intersection = first & second
+    union = first | second
+    if not union:
+        return 0.0
+    return len(intersection) / len(union)
+
+
+def _select_applicable_feedback(
+    query: str,
+    documents: List[SourceDocument],
+    feedback_snippets: List[FeedbackSnippet],
+) -> List[FeedbackSnippet]:
+    if not feedback_snippets:
+        return []
+
+    query_tokens = _tokenize(query)
+    if not query_tokens:
+        return []
+
+    best_matches: Dict[str, Tuple[FeedbackSnippet, float]] = {}
+
+    for document in documents:
+        doc_tokens = _tokenize(document.content)
+        if not doc_tokens:
+            continue
+        for snippet in feedback_snippets:
+            snippet_id = str(snippet.id)
+            snippet_tokens = _tokenize(snippet.query)
+            if not snippet_tokens:
+                continue
+
+            query_similarity = _jaccard_similarity(query_tokens, snippet_tokens)
+            intersection = doc_tokens & snippet_tokens
+            if not intersection:
+                continue
+            document_relevance = len(intersection) / len(snippet_tokens)
+            if query_similarity < QUERY_SIMILARITY_THRESHOLD or document_relevance < DOCUMENT_RELEVANCE_THRESHOLD:
+                continue
+
+            combined_score = query_similarity + document_relevance
+            existing = best_matches.get(snippet_id)
+            if existing is None or combined_score > existing[1]:
+                best_matches[snippet_id] = (snippet, combined_score)
+
+    if not best_matches:
+        return []
+
+    ranked_feedback = sorted(
+        best_matches.values(),
+        key=lambda item: (
+            config.ROLE_WEIGHTS.get(item[0].user_role, 0),
+            item[0].created_at,
+            item[1],
+        ),
+        reverse=True,
+    )
+    return [item[0] for item in ranked_feedback[:1]]
+
+
 def build_prompt(
     query: str,
     documents: List[SourceDocument],
     feedback_snippets: List[FeedbackSnippet],
     history: List[ChatMessage],
     user_role: str,
-) -> str:
+) -> Tuple[str, List[FeedbackSnippet]]:
     history_text = format_chat_history(history)
     documents_text = format_documents(documents)
-    if feedback_snippets:
+    applicable_feedback = _select_applicable_feedback(query, documents, feedback_snippets)
+
+    if applicable_feedback:
         feedback_lines = []
-        for snippet in feedback_snippets:
+        for snippet in applicable_feedback:
             feedback_lines.append(
                 "\n".join(
                     [
-                        f"Role: {snippet.user_role} (weight {snippet.weight}, score {snippet.score:.2f})",
+                        f"Provided by: {snippet.user_role} on {snippet.created_at.isoformat()}",
                         f"Original query: {snippet.query}",
                         "Updated response:",
                         snippet.updated_response,
@@ -58,21 +134,19 @@ def build_prompt(
             )
         feedback_text = "\n\n".join(feedback_lines)
     else:
-        feedback_text = "No user feedback matched the query."
+        feedback_text = "No applicable user feedback for this question."
 
-    role_weight = config.ROLE_WEIGHTS.get(user_role, 1)
+    prompt_sections = [
+        SYSTEM_PROMPT,
+        f"Active user role: {user_role}.",
+        "Chat history:",
+        history_text or "No previous conversation.",
+        "\nRetrieved documents:",
+        documents_text,
+        "\nApplicable user feedback:",
+        feedback_text,
+        "\nInstructions: If applicable user feedback is provided, treat it as the authoritative update while ensuring the final answer remains coherent with the retrieved documents. If no feedback is available, answer using the documents. Provide a concise, actionable response.",
+        f"\nUser question: {query}",
+    ]
 
-    return "\n".join(
-        [
-            SYSTEM_PROMPT,
-            f"The active user role is {user_role} with weight {role_weight}.",
-            "Chat history:",
-            history_text or "No previous conversation.",
-            "\nRetrieved documents:",
-            documents_text,
-            "\nRelevant user feedback (highest priority first):",
-            feedback_text,
-            "\nInstructions: Integrate the user feedback into your answer. Use the highest priority feedback as the authoritative source. If feedback contradicts documents, follow the feedback that has the highest role weight. Mention operational details captured in feedback when applicable. Provide a concise answer that references the relevant steps.",
-            f"\nUser question: {query}",
-        ]
-    )
+    return "\n".join(prompt_sections), applicable_feedback

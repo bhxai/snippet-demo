@@ -7,6 +7,7 @@ UPLOAD_DIR = DATA_DIR / "uploads"
 VECTOR_STORE_DIR = DATA_DIR / "vector_store"
 FEEDBACK_VECTOR_DIR = DATA_DIR / "feedback_vector_store"
 FEEDBACK_LOG_PATH = DATA_DIR / "feedback_log.json"
+ENV_PATH = BASE_DIR / ".env"
 
 ROLE_WEIGHTS: Dict[str, int] = {
     "driver": 1,

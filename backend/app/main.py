@@ -1,6 +1,7 @@
 import os
 from typing import List
 
+from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from langchain_community.vectorstores import FAISS
@@ -18,6 +19,8 @@ from .models import (
 )
 from .services import documents, feedback as feedback_service, prompt_builder, vector_store
 from .services.embeddings import get_embedding_model
+
+load_dotenv(dotenv_path=config.ENV_PATH)
 
 config.ensure_directories()
 
@@ -125,7 +128,7 @@ async def chat(
 
     documents_context = _build_documents_context(payload.query, stores)
     feedback_snippets = stores.feedback_repository.as_snippets(payload.query, limit=5)
-    prompt = prompt_builder.build_prompt(
+    prompt, applicable_feedback = prompt_builder.build_prompt(
         query=payload.query,
         documents=documents_context,
         feedback_snippets=feedback_snippets,
@@ -136,7 +139,7 @@ async def chat(
     return ChatResponse(
         answer=answer,
         used_documents=documents_context,
-        applied_feedback=feedback_snippets,
+        applied_feedback=applicable_feedback,
         prompt=prompt,
     )
 

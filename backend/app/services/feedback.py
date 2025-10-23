@@ -2,7 +2,7 @@ import json
 from dataclasses import dataclass
 from typing import List
 
-from langchain.docstore.document import Document
+from langchain_core.documents import Document
 from langchain_community.vectorstores import FAISS
 
 from .. import config
