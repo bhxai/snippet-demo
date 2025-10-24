@@ -100,8 +100,7 @@ def _select_applicable_feedback(
         best_matches.values(),
         key=lambda item: (
             config.ROLE_WEIGHTS.get(item[0].user_role, 0),
-            item[0].created_at,
-            item[1],
+            item[0].created_at
         ),
         reverse=True,
     )
