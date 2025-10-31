@@ -11,17 +11,30 @@ services:
       - "8000:8000"
     volumes:
       - backend_data:/app/backend/data
+    # NEW: Basic healthcheck (assumes you have a /health endpoint; optional)
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]  # Or /docs for FastAPI
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    # NEW: Auto-restart on failure
+    restart: unless-stopped
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_BASE_URL: http://localhost:8000
+        # CHANGED: Use service name for container-internal fetches (matches Dockerfile default)
+        VITE_API_BASE_URL: http://backend:8000
     ports:
       - "8080:80"
     depends_on:
-      - backend
+      backend:
+        # NEW: Wait for backend health (if healthcheck added)
+        condition: service_healthy
+    # NEW: Auto-restart
+    restart: unless-stopped
 
 volumes:
   backend_data:

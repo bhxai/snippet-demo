@@ -3,9 +3,11 @@ from typing import List
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi.staticfiles import StaticFiles  # NEW: Import for static serving
 from fastapi.middleware.cors import CORSMiddleware
 from langchain_community.vectorstores import FAISS
 from openai import OpenAI
+from starlette.responses import FileResponse  # NEW: For SPA fallback
 
 from . import config
 from .models import (
@@ -33,6 +35,10 @@ app.add_middleware(
     allow_credentials=True,
 )
 
+# NEW: Conditional static mount for prod (assets like JS/CSS)
+if os.getenv("ENV") == "production":
+    static_path = os.path.join(os.path.dirname(__file__), "..", "static")  # Relative to backend/static
+    app.mount("/static", StaticFiles(directory=static_path), name="static")
 
 class Stores:
     def __init__(self) -> None:
@@ -109,13 +115,12 @@ def _call_openai(prompt: str, model: str | None = None) -> str:
         )
     client = OpenAI(api_key=api_key)
     chosen_model = model or os.getenv("OPENAI_MODEL", config.DEFAULT_MODEL)
-    response = client.responses.create(
+    # FIXED: Use chat.completions.create (not responses.create); extract content properly
+    response = client.chat.completions.create(
         model=chosen_model,
-        input=[{"role": "user", "content": prompt}],
+        messages=[{"role": "user", "content": prompt}],
     )
-    if hasattr(response, "output_text"):
-        return response.output_text
-    return "".join(block.text for block in response.output if getattr(block, "type", "") == "output_text")
+    return response.choices[0].message.content
 
 
 @app.post("/chat", response_model=ChatResponse)
@@ -157,3 +162,16 @@ async def submit_feedback(
     )
     stored = stores.feedback_repository.add(entry)
     return FeedbackResponse(success=True, entry=stored)
+
+
+# NEW: SPA catch-all for frontend routes (prod-only, after all API routes)
+if os.getenv("ENV") == "production":
+    static_path = os.path.join(os.path.dirname(__file__), "..", "static")  # Same as above
+    @app.get("/{full_path:path}", response_class=FileResponse)
+    async def serve_spa(full_path: str):
+        # Exclude API and upload/feedback routes
+        if full_path.startswith(("api/", "upload", "feedback")):
+            return None  # Let FastAPI handle these
+        if not os.path.exists(os.path.join(static_path, "index.html")):
+            raise HTTPException(status_code=404, detail="Frontend not built")
+        return FileResponse(os.path.join(static_path, "index.html"))
